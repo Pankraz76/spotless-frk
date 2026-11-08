@@ -12,6 +12,7 @@ We adhere to the [keepachangelog](https://keepachangelog.com/en/1.0.0/) format (
 ## [Unreleased]
 ### Fixed
 - GrEclipse no longer leaves a `file%3A...` directory in the working directory. ([#2019](https://github.com/diffplug/spotless/issues/2019))
+- Lints for formatters that fail during reflective setup now report the underlying error (e.g. `NoClassDefFoundError` for a missing transitive dependency) instead of `java.lang.reflect.InvocationTargetException`.
 
 ## [4.11.0] - 2026-11-02
 ### Added
