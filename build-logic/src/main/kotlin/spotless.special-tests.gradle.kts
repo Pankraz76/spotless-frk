@@ -30,8 +30,14 @@ tasks.withType<Test>().configureEach {
 
 tasks.named<Test>("test") { useJUnitPlatform { excludeTags(*special.toTypedArray()) } }
 
+val testSourceSet = sourceSets.named("test")
+
 special.forEach { tag ->
   tasks.register<Test>("test${tag.replaceFirstChar { it.uppercase() }}") {
+    // Gradle 9 no longer wires ad-hoc Test tasks to the `test` source set by convention,
+    // without this the task is NO-SOURCE and silently runs zero tests
+    testClassesDirs = testSourceSet.get().output.classesDirs
+    classpath = testSourceSet.get().runtimeClasspath
     useJUnitPlatform { includeTags(tag) }
     val testEnv = rootProject.file("testenv.properties")
     if (testEnv.exists()) {
