@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 DiffPlug
+ * Copyright 2016-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import static java.util.stream.Collectors.toSet;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -45,7 +44,7 @@ public class Java extends FormatterFactory {
 		Path projectDir = project.getBasedir().toPath();
 		Build build = project.getBuild();
 		return Stream.of(build.getSourceDirectory(), build.getTestSourceDirectory())
-				.map(Paths::get)
+				.map(Path::of)
 				.map(projectDir::relativize)
 				.map(Java::fileMask)
 				.collect(toSet());
@@ -72,12 +71,20 @@ public class Java extends FormatterFactory {
 		addStepFactory(palantirJavaFormat);
 	}
 
+	public void addPrinceOfSpace(PrinceOfSpace princeOfSpace) {
+		addStepFactory(princeOfSpace);
+	}
+
 	public void addRemoveUnusedImports(RemoveUnusedImports removeUnusedImports) {
 		addStepFactory(removeUnusedImports);
 	}
 
 	public void addForbidWildcardImports(ForbidWildcardImports forbidWildcardImports) {
 		addStepFactory(forbidWildcardImports);
+	}
+
+	public void addExpandWildcardImports(ExpandWildcardImports expandWildcardImports) {
+		addStepFactory(expandWildcardImports);
 	}
 
 	public void addForbidModuleImports(ForbidModuleImports forbidModuleImports) {
@@ -90,6 +97,14 @@ public class Java extends FormatterFactory {
 
 	public void addCleanthat(CleanthatJava cleanthat) {
 		addStepFactory(cleanthat);
+	}
+
+	public void addTableTestFormatter(TableTestFormatter tableTestFormatter) {
+		addStepFactory(tableTestFormatter);
+	}
+
+	public void addShortenFullyQualifiedTypes(ShortenFullyQualifiedTypes shortenFullyQualifiedTypes) {
+		addStepFactory(shortenFullyQualifiedTypes);
 	}
 
 	private static String fileMask(Path path) {

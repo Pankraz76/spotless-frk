@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 DiffPlug
+ * Copyright 2023-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,7 +87,7 @@ public class JavaCleanthatRefactorerFunc implements FormatterFunc.NeedsFile {
 
 		JavaRefactorer refactorer = new JavaRefactorer(engineProperties, refactorerProperties);
 
-		LOGGER.debug("Processing sourceJdk={} included={} excluded={}", jdkVersion, included, excluded, includeDraft);
+		LOGGER.debug("Processing sourceJdk={} included={} excluded={} includeDraft={}", jdkVersion, included, excluded, includeDraft);
 		LOGGER.debug("Available mutators: {}", JavaRefactorer.getAllIncluded());
 
 		PathAndContent pathAndContent = new PathAndContent(file.toPath(), input);

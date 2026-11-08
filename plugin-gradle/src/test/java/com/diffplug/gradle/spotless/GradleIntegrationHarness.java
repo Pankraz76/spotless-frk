@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 DiffPlug
+ * Copyright 2016-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,9 +55,12 @@ public class GradleIntegrationHarness extends ResourceHarness {
 		GradleVersionSupport(String version) {
 			String minVersionForRunningJRE;
 			switch (Jvm.version()) {
-			case 26:
-				throw new IllegalStateException("Gradle does not yet support running on Java 26. " +
+			case 27:
+				throw new IllegalStateException("Gradle does not yet support running on Java 27. " +
 						"You need to update the case ref to https://docs.gradle.org/current/userguide/compatibility.html.");
+			case 26:
+				minVersionForRunningJRE = "9.4.0";
+				break;
 			case 25:
 				minVersionForRunningJRE = "9.1.0";
 				break;
@@ -197,7 +200,7 @@ public class GradleIntegrationHarness extends ResourceHarness {
 
 		List<String> expected = outcomes(buildResult, upToDate ? TaskOutcome.UP_TO_DATE : TaskOutcome.SUCCESS);
 		List<String> notExpected = outcomes(buildResult, upToDate ? TaskOutcome.SUCCESS : TaskOutcome.UP_TO_DATE);
-		boolean everythingAsExpected = !expected.isEmpty() && notExpected.isEmpty() && buildResult.getTasks().size() - 1 == expected.size();
+		boolean everythingAsExpected = !expected.isEmpty() && notExpected.isEmpty() && buildResult.getTasks().size() == expected.size();
 		if (!everythingAsExpected) {
 			fail("Expected all tasks to be " + (upToDate ? TaskOutcome.UP_TO_DATE : TaskOutcome.SUCCESS) + ", but instead was\n" + buildResultToString(buildResult));
 		}

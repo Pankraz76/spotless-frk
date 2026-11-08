@@ -31,7 +31,6 @@ import java.util.Set;
 import javax.inject.Inject;
 
 import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 
@@ -46,7 +45,10 @@ import com.diffplug.spotless.java.FormatAnnotationsStep;
 import com.diffplug.spotless.java.GoogleJavaFormatStep;
 import com.diffplug.spotless.java.ImportOrderStep;
 import com.diffplug.spotless.java.PalantirJavaFormatStep;
+import com.diffplug.spotless.java.PrinceOfSpaceStep;
 import com.diffplug.spotless.java.RemoveUnusedImportsStep;
+import com.diffplug.spotless.java.ShortenFullyQualifiedTypesStep;
+import com.diffplug.spotless.java.TableTestFormatterStep;
 
 public class JavaExtension extends FormatExtension implements HasBuiltinDelimiterForLicense, JvmLang {
 	static final String NAME = "java";
@@ -167,6 +169,11 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 		addStep(ForbidWildcardImportsStep.create());
 	}
 
+	/** Shortens fully qualified type names and adds imports. */
+	public void shortenFullyQualifiedTypes() {
+		addStep(ShortenFullyQualifiedTypesStep.create(provisioner()));
+	}
+
 	public void forbidModuleImports() {
 		addStep(ForbidModuleImportsStep.create());
 	}
@@ -174,7 +181,10 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 	public void expandWildcardImports() {
 		SourceSetContainer sourceSets = getSourceSets(getProject(), "expansion of wildcards requires the 'java' plugin to be applied");
 		Set<File> typeSolverClasspath = sourceSets.stream().flatMap(s -> s.getAllJava().getSrcDirs().stream()).collect(toSet());
-		getProject().getConfigurations().stream().filter(Configuration::isCanBeResolved).flatMap(c -> c.getFiles().stream()).forEach(typeSolverClasspath::add);
+		sourceSets.stream()
+				.map(SourceSet::getCompileClasspath)
+				.flatMap(classpath -> classpath.getFiles().stream())
+				.forEach(typeSolverClasspath::add);
 		addStep(ExpandWildcardImportsStep.create(typeSolverClasspath, provisioner()));
 	}
 
@@ -201,6 +211,8 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 		boolean reflowLongStrings;
 		boolean reorderImports;
 		boolean formatJavadoc = true;
+		boolean cleanup = true;
+		int maxLineLength = GoogleJavaFormatStep.defaultMaxLineLength();
 
 		GoogleJavaFormatConfig(String version) {
 			this.version = Objects.requireNonNull(version);
@@ -251,6 +263,23 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 			return this;
 		}
 
+		/** Enables or disables google-java-format's non-whitespace cleanups (google-java-format 2.0.0 and later), which are enabled by default. */
+		public GoogleJavaFormatConfig cleanup(boolean cleanup) {
+			this.cleanup = cleanup;
+			replaceStep(createStep());
+			return this;
+		}
+
+		/**
+		 * Overrides the column limit prescribed by the style (100 for both GOOGLE and AOSP).
+		 * Requires google-java-format 2.0.0 or later.
+		 */
+		public GoogleJavaFormatConfig maxLineLength(int maxLineLength) {
+			this.maxLineLength = maxLineLength;
+			replaceStep(createStep());
+			return this;
+		}
+
 		private FormatterStep createStep() {
 			return GoogleJavaFormatStep.create(
 					groupArtifact,
@@ -259,7 +288,9 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 					provisioner(),
 					reflowLongStrings,
 					reorderImports,
-					formatJavadoc);
+					formatJavadoc,
+					cleanup,
+					maxLineLength);
 		}
 	}
 
@@ -304,6 +335,73 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 
 		private FormatterStep createStep() {
 			return PalantirJavaFormatStep.create(version, style, formatJavadoc, provisioner());
+		}
+	}
+
+	/** Uses the <a href="https://github.com/agustafson/prince-of-space">prince-of-space</a> jar to format source code. */
+	public PrinceOfSpaceConfig princeOfSpace() {
+		return princeOfSpace(PrinceOfSpaceStep.defaultVersion());
+	}
+
+	/** Uses the given version of <a href="https://github.com/agustafson/prince-of-space">prince-of-space</a> to format source code. */
+	public PrinceOfSpaceConfig princeOfSpace(String version) {
+		Objects.requireNonNull(version);
+		return new PrinceOfSpaceConfig(version);
+	}
+
+	public class PrinceOfSpaceConfig {
+		final String version;
+		final PrinceOfSpaceStep.Options options = new PrinceOfSpaceStep.Options();
+
+		PrinceOfSpaceConfig(String version) {
+			this.version = Objects.requireNonNull(version);
+			addStep(createStep());
+		}
+
+		public PrinceOfSpaceConfig indentStyle(String indentStyle) {
+			options.setIndentStyle(indentStyle);
+			replaceStep(createStep());
+			return this;
+		}
+
+		public PrinceOfSpaceConfig indentSize(int indentSize) {
+			options.setIndentSize(indentSize);
+			replaceStep(createStep());
+			return this;
+		}
+
+		public PrinceOfSpaceConfig lineLength(int lineLength) {
+			options.setLineLength(lineLength);
+			replaceStep(createStep());
+			return this;
+		}
+
+		public PrinceOfSpaceConfig wrapStyle(String wrapStyle) {
+			options.setWrapStyle(wrapStyle);
+			replaceStep(createStep());
+			return this;
+		}
+
+		public PrinceOfSpaceConfig closingParenOnNewLine(boolean closingParenOnNewLine) {
+			options.setClosingParenOnNewLine(closingParenOnNewLine);
+			replaceStep(createStep());
+			return this;
+		}
+
+		public PrinceOfSpaceConfig trailingCommas(boolean trailingCommas) {
+			options.setTrailingCommas(trailingCommas);
+			replaceStep(createStep());
+			return this;
+		}
+
+		public PrinceOfSpaceConfig javaLanguageLevel(int javaLanguageLevel) {
+			options.setJavaLanguageLevel(javaLanguageLevel);
+			replaceStep(createStep());
+			return this;
+		}
+
+		private FormatterStep createStep() {
+			return PrinceOfSpaceStep.create(version, provisioner(), options);
 		}
 	}
 
@@ -384,6 +482,20 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 			return this;
 		}
 
+		/**
+		 * Overrides the directory used to cache the P2 dependencies fetched by
+		 * Equo/Solstice. Defaults to {@code $GRADLE_USER_HOME/caches/p2-data}.
+		 *
+		 * <p>Useful when the default location is not writable, or when you want to
+		 * place the cache elsewhere.
+		 */
+		public EclipseConfig cacheDirectory(Object cacheDirectory) {
+			Objects.requireNonNull(cacheDirectory);
+			builder.setCacheDirectory(getProject().file(cacheDirectory));
+			replaceStep(builder.build());
+			return this;
+		}
+
 	}
 
 	/** Removes newlines between type annotations and types. */
@@ -432,6 +544,8 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 
 		private String version = CleanthatJavaStep.defaultVersion();
 
+		private String javaparserVersion = CleanthatJavaStep.defaultJavaparserVersion();
+
 		private String sourceJdk = CleanthatJavaStep.defaultSourceJdk();
 
 		private List<String> mutators = new ArrayList<>(CleanthatJavaStep.defaultMutators());
@@ -454,6 +568,18 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 		public CleanthatJavaConfig version(String version) {
 			Objects.requireNonNull(version);
 			this.version = version;
+			replaceStep(createStep());
+			return this;
+		}
+
+		/**
+		 * Advanced: override the version of JavaParser pulled in transitively by Cleanthat. The coordinate
+		 * {@code com.github.javaparser:javaparser-symbol-solver-core:<version>} is appended to the resolved classpath;
+		 * standard dependency resolution rules then apply (newest wins).
+		 */
+		public CleanthatJavaConfig javaparserVersion(String javaparserVersion) {
+			Objects.requireNonNull(javaparserVersion);
+			this.javaparserVersion = javaparserVersion;
 			replaceStep(createStep());
 			return this;
 		}
@@ -503,7 +629,32 @@ public class JavaExtension extends FormatExtension implements HasBuiltinDelimite
 			return CleanthatJavaStep.create(
 					groupArtifact,
 					version,
+					javaparserVersion,
 					sourceJdk, mutators, excludedMutators, includeDraft, provisioner());
+		}
+	}
+
+	/** Formats {@code @TableTest} annotation tables using <a href="https://github.com/nchaugen/tabletest-formatter">tabletest-formatter</a>. */
+	public TableTestFormatterConfig tableTestFormatter() {
+		return tableTestFormatter(TableTestFormatterStep.defaultVersion());
+	}
+
+	/** Formats {@code @TableTest} annotation tables using <a href="https://github.com/nchaugen/tabletest-formatter">tabletest-formatter</a>. */
+	public TableTestFormatterConfig tableTestFormatter(String version) {
+		Objects.requireNonNull(version);
+		return new TableTestFormatterConfig(version);
+	}
+
+	public class TableTestFormatterConfig {
+		final String version;
+
+		TableTestFormatterConfig(String version) {
+			this.version = Objects.requireNonNull(version);
+			addStep(createStep());
+		}
+
+		private FormatterStep createStep() {
+			return TableTestFormatterStep.create(version, provisioner());
 		}
 	}
 

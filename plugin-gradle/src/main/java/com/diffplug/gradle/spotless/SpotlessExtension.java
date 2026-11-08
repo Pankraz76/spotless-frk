@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 DiffPlug
+ * Copyright 2016-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,15 +27,14 @@ import javax.annotation.Nullable;
 import org.gradle.api.Action;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
-import org.gradle.api.tasks.TaskContainer;
-import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.provider.Provider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 import com.diffplug.spotless.LineEnding;
 
 public abstract class SpotlessExtension {
 	final Project project;
-	private final RegisterDependenciesTask registerDependenciesTask;
+	private final Provider<SpotlessTaskService> spotlessTaskService;
 
 	protected static final String TASK_GROUP = LifecycleBasePlugin.VERIFICATION_GROUP;
 	protected static final String BUILD_SETUP_TASK_GROUP = "build setup";
@@ -52,11 +51,11 @@ public abstract class SpotlessExtension {
 
 	protected SpotlessExtension(Project project) {
 		this.project = requireNonNull(project);
-		this.registerDependenciesTask = findRegisterDepsTask().get();
+		this.spotlessTaskService = SpotlessTaskService.registerIfAbsent(project, "");
 	}
 
-	RegisterDependenciesTask getRegisterDependenciesTask() {
-		return registerDependenciesTask;
+	Provider<SpotlessTaskService> getSpotlessTaskService() {
+		return spotlessTaskService;
 	}
 
 	/** Line endings (if any). */
@@ -184,6 +183,12 @@ public abstract class SpotlessExtension {
 		format(JavascriptExtension.NAME, JavascriptExtension.class, closure);
 	}
 
+	/** Configures the special tableTest-specific extension for .table files. */
+	public void tableTest(Action<TableTestExtension> closure) {
+		requireNonNull(closure);
+		format(TableTestExtension.NAME, TableTestExtension.class, closure);
+	}
+
 	/** Configures the special typescript-specific extension for typescript files. */
 	public void typescript(Action<TypescriptExtension> closure) {
 		format(TypescriptExtension.NAME, TypescriptExtension.class, closure);
@@ -227,6 +232,17 @@ public abstract class SpotlessExtension {
 	public void gherkin(Action<GherkinExtension> closure) {
 		requireNonNull(closure);
 		format(GherkinExtension.NAME, GherkinExtension.class, closure);
+	}
+
+	/** Configures the special asciidoc-specific extension. */
+	public void asciidoc(Action<AsciidocExtension> closure) {
+		requireNonNull(closure);
+		format(AsciidocExtension.NAME, AsciidocExtension.class, closure);
+	}
+
+	public void toml(Action<TomlExtension> closure) {
+		requireNonNull(closure);
+		format(TomlExtension.NAME, TomlExtension.class, closure);
 	}
 
 	public void go(Action<GoExtension> closure) {
@@ -303,42 +319,46 @@ public abstract class SpotlessExtension {
 
 	protected abstract void createFormatTasks(String name, FormatExtension formatExtension);
 
-	TaskProvider<RegisterDependenciesTask> findRegisterDepsTask() {
-		try {
-			return findRegisterDepsTask(RegisterDependenciesTask.TASK_NAME);
-		} catch (Exception e) {
-			// in a composite build there can be multiple Spotless plugins on the classpath, and they will each try to register
-			// a task on the root project with the same name. That will generate casting errors, which we can catch and try again
-			// with an identity-specific identifier.
-			// https://github.com/diffplug/spotless/pull/1001 for details
-			return findRegisterDepsTask(RegisterDependenciesTask.TASK_NAME + System.identityHashCode(RegisterDependenciesTask.class));
-		}
-	}
-
-	private TaskProvider<RegisterDependenciesTask> findRegisterDepsTask(String taskName) {
-		TaskContainer rootProjectTasks = project.getRootProject().getTasks();
-		if (!rootProjectTasks.getNames().contains(taskName)) {
-			return rootProjectTasks.register(taskName, RegisterDependenciesTask.class, RegisterDependenciesTask::setup);
-		} else {
-			return rootProjectTasks.named(taskName, RegisterDependenciesTask.class);
-		}
-	}
-
+	/**
+	 * Enables predeclared dependency resolution using the root project's {@code buildscript} repositories.
+	 *
+	 * @deprecated Configure the repository policy directly in {@code spotlessPredeclare} instead:
+	 *             <pre>{@code
+	 *             spotlessPredeclare {
+	 *                 fromBuildscriptRepositories()
+	 *                 java { googleJavaFormat("1.17.0") }
+	 *             }
+	 *             }</pre>
+	 */
+	@Deprecated
 	public void predeclareDepsFromBuildscript() {
 		if (project.getRootProject() != project) {
 			throw new GradleException("predeclareDepsFromBuildscript can only be called from the root project");
 		}
+		project.getLogger().info("predeclareDepsFromBuildscript() is deprecated, use 'spotlessPredeclare { fromBuildscriptRepositories() }' directly instead.");
 		predeclare(GradleProvisioner.Policy.ROOT_BUILDSCRIPT);
 	}
 
+	/**
+	 * Enables predeclared dependency resolution using the root project's repositories.
+	 *
+	 * @deprecated Declare formats directly in {@code spotlessPredeclare} instead:
+	 *             <pre>{@code
+	 *             spotlessPredeclare {
+	 *                 java { googleJavaFormat("1.17.0") }
+	 *             }
+	 *             }</pre>
+	 */
+	@Deprecated
 	public void predeclareDeps() {
 		if (project.getRootProject() != project) {
 			throw new GradleException("predeclareDeps can only be called from the root project");
 		}
+		project.getLogger().info("predeclareDeps() is deprecated, use 'spotlessPredeclare { ... }' directly instead.");
 		predeclare(GradleProvisioner.Policy.ROOT_PROJECT);
 	}
 
-	protected void predeclare(GradleProvisioner.Policy policy) {
-		project.getExtensions().create(SpotlessExtensionPredeclare.class, EXTENSION_PREDECLARE, SpotlessExtensionPredeclare.class, project, policy);
+	void predeclare(GradleProvisioner.Policy policy) {
+		project.getExtensions().getByType(SpotlessExtensionPredeclare.class).enablePredeclare(policy);
 	}
 }

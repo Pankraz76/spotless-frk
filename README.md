@@ -8,7 +8,7 @@ Spotless can format &lt;antlr | c | c# | c++ | css | flow | graphql | groovy | h
 
 You probably want one of the links below:
 
-## [❇️ Spotless for Gradle](plugin-gradle) (with integrations for [VS Code](https://marketplace.visualstudio.com/items?itemName=richardwillis.vscode-spotless-gradle) and [IntelliJ](https://plugins.jetbrains.com/plugin/18321-spotless-gradle))
+## [❇️ Spotless for Gradle](plugin-gradle) (with integrations for [VS Code](https://marketplace.visualstudio.com/items?itemName=richardwillis.vscode-spotless-gradle) and IntelliJ with [Spotless Daemon](https://plugins.jetbrains.com/plugin/29287-spotless-daemon) or [Spotless Gradle](https://plugins.jetbrains.com/plugin/18321-spotless-gradle))
 
 ```console
 user@machine repo % ./gradlew build
@@ -77,20 +77,23 @@ lib('generic.TrimTrailingWhitespaceStep')        +'{{yes}}       | {{yes}}      
 lib('antlr4.Antlr4FormatterStep')                +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('biome.BiomeStep')                           +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('cpp.ClangFormatStep')                       +'{{yes}}       | {{no}}       | {{no}}       | {{no}}  |',
-extra('cpp.EclipseFormatterStep')                +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
+extra('cpp.EclipseCdtFormatterStep')             +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('go.GofmtFormatStep')                        +'{{yes}}       | {{no}}       | {{no}}       | {{no}}  |',
 lib('gherkin.GherkinUtilsStep')                  +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 extra('groovy.GrEclipseFormatterStep')           +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('java.GoogleJavaFormatStep')                 +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('java.ImportOrderStep')                      +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('java.PalantirJavaFormatStep')               +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
+lib('java.PrinceOfSpaceStep')                    +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('java.RemoveUnusedImportsStep')              +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('java.ExpandWildcardImportsStep')            +'{{yes}}       | {{no}}       | {{no}}       | {{no}}  |',
 lib('java.ForbidWildcardImportsStep')            +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('java.ForbidModuleImportsStep')              +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
+lib('java.ShortenFullyQualifiedTypesStep')       +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 extra('java.EclipseJdtFormatterStep')            +'{{yes}}       | {{yes}}      | {{yes}}      | {{no}}  |',
 lib('java.FormatAnnotationsStep')                +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('java.CleanthatJavaStep')                    +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
+lib('java.TableTestFormatterStep')               +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('json.gson.GsonStep')                        +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('json.JacksonJsonStep')                      +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
 lib('json.JsonSimpleStep')                       +'{{yes}}       | {{yes}}      | {{no}}       | {{no}}  |',
@@ -135,20 +138,23 @@ lib('yaml.JacksonYamlStep')                      +'{{yes}}       | {{yes}}      
 | [`antlr4.Antlr4FormatterStep`](lib/src/main/java/com/diffplug/spotless/antlr4/Antlr4FormatterStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`biome.BiomeStep`](lib/src/main/java/com/diffplug/spotless/biome/BiomeStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`cpp.ClangFormatStep`](lib/src/main/java/com/diffplug/spotless/cpp/ClangFormatStep.java) | :+1:       | :white_large_square:       | :white_large_square:       | :white_large_square:  |
-| [`cpp.EclipseFormatterStep`](lib-extra/src/main/java/com/diffplug/spotless/extra/cpp/EclipseFormatterStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
+| [`cpp.EclipseCdtFormatterStep`](lib-extra/src/main/java/com/diffplug/spotless/extra/cpp/EclipseCdtFormatterStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`go.GofmtFormatStep`](lib/src/main/java/com/diffplug/spotless/go/GofmtFormatStep.java) | :+1:       | :white_large_square:       | :white_large_square:       | :white_large_square:  |
 | [`gherkin.GherkinUtilsStep`](lib/src/main/java/com/diffplug/spotless/gherkin/GherkinUtilsStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`groovy.GrEclipseFormatterStep`](lib-extra/src/main/java/com/diffplug/spotless/extra/groovy/GrEclipseFormatterStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`java.GoogleJavaFormatStep`](lib/src/main/java/com/diffplug/spotless/java/GoogleJavaFormatStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`java.ImportOrderStep`](lib/src/main/java/com/diffplug/spotless/java/ImportOrderStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`java.PalantirJavaFormatStep`](lib/src/main/java/com/diffplug/spotless/java/PalantirJavaFormatStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
+| [`java.PrinceOfSpaceStep`](lib/src/main/java/com/diffplug/spotless/java/PrinceOfSpaceStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`java.RemoveUnusedImportsStep`](lib/src/main/java/com/diffplug/spotless/java/RemoveUnusedImportsStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`java.ExpandWildcardImportsStep`](lib/src/main/java/com/diffplug/spotless/java/ExpandWildcardImportsStep.java) | :+1:       | :white_large_square:       | :white_large_square:       | :white_large_square:  |
 | [`java.ForbidWildcardImportsStep`](lib/src/main/java/com/diffplug/spotless/java/ForbidWildcardImportsStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`java.ForbidModuleImportsStep`](lib/src/main/java/com/diffplug/spotless/java/ForbidModuleImportsStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
+| [`java.ShortenFullyQualifiedTypesStep`](lib/src/main/java/com/diffplug/spotless/java/ShortenFullyQualifiedTypesStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`java.EclipseJdtFormatterStep`](lib-extra/src/main/java/com/diffplug/spotless/extra/java/EclipseJdtFormatterStep.java) | :+1:       | :+1:      | :+1:      | :white_large_square:  |
 | [`java.FormatAnnotationsStep`](lib/src/main/java/com/diffplug/spotless/java/FormatAnnotationsStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`java.CleanthatJavaStep`](lib/src/main/java/com/diffplug/spotless/java/CleanthatJavaStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
+| [`java.TableTestFormatterStep`](lib/src/main/java/com/diffplug/spotless/java/TableTestFormatterStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`json.gson.GsonStep`](lib/src/main/java/com/diffplug/spotless/json/gson/GsonStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`json.JacksonJsonStep`](lib/src/main/java/com/diffplug/spotless/json/JacksonJsonStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |
 | [`json.JsonSimpleStep`](lib/src/main/java/com/diffplug/spotless/json/JsonSimpleStep.java) | :+1:       | :+1:      | :white_large_square:       | :white_large_square:  |

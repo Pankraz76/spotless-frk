@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 DiffPlug
+ * Copyright 2016-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import com.diffplug.common.base.StringPrinter;
+import com.diffplug.spotless.java.GoogleJavaFormatStep;
 
 class MultiProjectTest extends GradleIntegrationHarness {
 	private static final int N = 100;
@@ -47,7 +48,7 @@ class MultiProjectTest extends GradleIntegrationHarness {
 				"spotless {",
 				"    java {",
 				"        target file('test.java')",
-				"        googleJavaFormat('1.17.0')",
+				"        googleJavaFormat()",
 				"    }",
 				"}");
 		setFile(name + "/test.java").toResource("java/googlejavaformat/JavaCodeUnformatted.test");
@@ -71,7 +72,7 @@ class MultiProjectTest extends GradleIntegrationHarness {
 				"spotless {",
 				"    java {",
 				"        target file('test.java')",
-				"        googleJavaFormat('1.17.0')",
+				"        googleJavaFormat()",
 				"    }",
 				"}");
 		setFile("test.java").toResource("java/googlejavaformat/JavaCodeUnformatted.test");
@@ -88,67 +89,118 @@ class MultiProjectTest extends GradleIntegrationHarness {
 				"spotless { predeclareDeps() }");
 		createNSubprojects();
 		Assertions.assertThat(gradleRunner().withArguments("spotlessApply").buildAndFail().getOutput())
-				.contains("Add a step with [com.google.googlejavaformat:google-java-format:1.17.0] into the `spotlessPredeclare` block in the root project.");
+				.contains("Add a step with [com.google.googlejavaformat:google-java-format:" + GoogleJavaFormatStep.defaultVersion() + "] into the `spotlessPredeclare` block in the root project.");
 	}
 
 	@Test
-	public void predeclaredSucceeds() throws IOException {
+	public void predeclaredSucceeds_deprecatedAPI() throws IOException {
 		setFile("build.gradle").toLines(
 				"plugins {",
 				"    id 'com.diffplug.spotless'",
 				"}",
 				"repositories { mavenCentral() }",
 				"spotless { predeclareDeps() }",
+				"",
 				"spotlessPredeclare {",
-				" java { googleJavaFormat('1.17.0') }",
+				"    java { googleJavaFormat() }",
 				"}");
 		createNSubprojects();
 		gradleRunner().withArguments("spotlessApply").build();
 	}
 
 	@Test
-	public void predeclaredFromBuildscriptSucceeds() throws IOException {
+	public void predeclaredFromBuildscriptSucceeds_deprecatedAPI() throws IOException {
 		setFile("build.gradle").toLines(
+				"buildscript {",
+				"    repositories { mavenCentral() }",
+				"}",
 				"plugins {",
 				"    id 'com.diffplug.spotless'",
 				"}",
 				"repositories { mavenCentral() }",
 				"spotless { predeclareDepsFromBuildscript() }",
 				"spotlessPredeclare {",
-				" java { googleJavaFormat('1.17.0') }",
+				"    java { googleJavaFormat() }",
 				"}");
 		createNSubprojects();
 		gradleRunner().withArguments("spotlessApply").build();
 	}
 
 	@Test
-	public void predeclaredOrdering() throws IOException {
+	public void predeclaredFromBuildscriptInPredeclareBlockSucceeds() throws IOException {
 		setFile("build.gradle").toLines(
+				"buildscript {",
+				"    repositories { mavenCentral() }",
+				"}",
 				"plugins {",
 				"    id 'com.diffplug.spotless'",
 				"}",
 				"repositories { mavenCentral() }",
+				"",
 				"spotlessPredeclare {",
-				" java { googleJavaFormat('1.17.0') }",
-				"}",
-				"spotless { predeclareDepsFromBuildscript() }");
+				"    fromBuildscriptRepositories()",
+				"    java { googleJavaFormat() }",
+				"}");
 		createNSubprojects();
-		Assertions.assertThat(gradleRunner().withArguments("spotlessApply").buildAndFail().getOutput())
-				.contains("Could not find method spotlessPredeclare() for arguments");
+		gradleRunner().withArguments("spotlessApply").build();
 	}
 
 	@Test
-	public void predeclaredUndeclared() throws IOException {
+	public void predeclaredOrderingIsFlexible() throws IOException {
 		setFile("build.gradle").toLines(
 				"plugins {",
 				"    id 'com.diffplug.spotless'",
 				"}",
 				"repositories { mavenCentral() }",
 				"spotlessPredeclare {",
-				" java { googleJavaFormat('1.17.0') }",
+				" java { googleJavaFormat() }",
+				"}",
+				"spotless { predeclareDeps() }");
+		createNSubprojects();
+		gradleRunner().withArguments("spotlessApply").build();
+	}
+
+	@Test
+	public void predeclaredDepsRegression() throws IOException {
+		setFile("settings.gradle").toContent("include 'sub'");
+		setFile("build.gradle").toLines(
+				"plugins { id 'com.diffplug.spotless' }",
+				"repositories { mavenCentral() }",
+				"spotless {",
+				"    predeclareDeps()",
+				"    java {",
+				"        target file('test.java')",
+				"        googleJavaFormat()",
+				"    }",
+				"}",
+				"spotlessPredeclare {",
+				"    java { googleJavaFormat() }",
+				"}");
+		setFile("test.java").toResource("java/googlejavaformat/JavaCodeUnformatted.test");
+		setFile("sub/build.gradle").toLines(
+				"plugins { id 'com.diffplug.spotless' }",
+				"repositories { mavenCentral() }",
+				"spotless {",
+				"    java {",
+				"        target file('test.java')",
+				"        googleJavaFormat()",
+				"    }",
+				"}");
+		setFile("sub/test.java").toResource("java/googlejavaformat/JavaCodeUnformatted.test");
+		gradleRunner().withArguments("spotlessApply").build();
+	}
+
+	@Test
+	public void predeclaredWithoutSpotlessBlockSucceeds() throws IOException {
+		setFile("build.gradle").toLines(
+				"plugins {",
+				"    id 'com.diffplug.spotless'",
+				"}",
+				"repositories { mavenCentral() }",
+				"spotlessPredeclare {",
+				" java { googleJavaFormat() }",
 				"}");
 		createNSubprojects();
-		Assertions.assertThat(gradleRunner().withArguments("spotlessApply").buildAndFail().getOutput())
-				.contains("Could not find method spotlessPredeclare() for arguments");
+		gradleRunner().withArguments("spotlessApply").build();
 	}
 }

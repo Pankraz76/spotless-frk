@@ -1,13 +1,18 @@
 # NEXUS_USER
-# NEXUS_PASS64 (base64 NOTE: `base64` and `openssl base64` failed, had to use Java
-#   byte[] data = "{{password}}".getBytes(StandardCharsets.UTF_8);
-#   String encoded = new String(Base64.getEncoder().encode(data), StandardCharsets.UTF_8);
-#   System.out.println(encoded);
+# NEXUS_PASS
 # GPG_PASSPHRASE
-# GPG_KEY64 (base64)
-#   gpg --export-secret-keys --armor KEY_ID | openssl base64 | pbcopy
+# GPG_KEY
+#   gpg --export-secret-subkeys --armor SUBKEY_ID! | pbcopy
+#   subkeys only, so the primary key never lands in CI
 # GRADLE_KEY
 # GRADLE_SECRET
+#
+# NEXUS_PASS and GPG_KEY are environment secrets on `maven-central`, not org secrets.
+#
+# Store each secret in the exact form the build consumes. GitHub masks the value it was given,
+# so anything a workflow step decodes or reshapes is no longer masked and lands in the log.
+# That is why the base64 variants (NEXUS_PASS64, GPG_KEY64) were deleted on 2026-09-17; do not
+# reintroduce them.
 
 name: deploy
 on:
@@ -23,49 +28,104 @@ on:
           - plugin-maven
           - all
           - lib
+          - lib-recover
+      lib_version:
+        description: 'Existing lib tag version to publish when using lib-recover (e.g. 4.10.3)'
+        required: false
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
     name: deploy
+    # holds the publishing secrets; its branch policy allows only `release`, which only
+    # nedtwigg can push to, so nothing else in the repo can reach them
+    environment: maven-central
     permissions:
       contents: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      ORG_GRADLE_PROJECT_nexus_user: ${{ secrets.NEXUS_USER }}
-      ORG_GRADLE_PROJECT_nexus_pass64: ${{ secrets.NEXUS_PASS64 }}
-      ORG_GRADLE_PROJECT_gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      ORG_GRADLE_PROJECT_gpg_key64: ${{ secrets.GPG_KEY64 }}
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.NEXUS_USER }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.NEXUS_PASS }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY }}
+      # signing subkey issued 2026-09-17, replacing 0x4272C851 whose encrypted copy was exposed
+      # in public CI logs: https://github.com/diffplug/spotless/issues/3089
+      # Gradle requires the last 8 hex digits of subkey FA5C18CFB74EC7C6.
+      ORG_GRADLE_PROJECT_signingInMemoryKeyId: "0xB74EC7C6"
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Validate library recovery input
+        if: "${{ inputs.to_publish == 'lib-recover' }}"
+        env:
+          LIB_VERSION: ${{ inputs.lib_version }}
+        run: |
+          [[ "$LIB_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo 'lib-recover requires a released library version, e.g. 4.10.3'
+            exit 1
+          }
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          ref: ${{ inputs.to_publish == 'lib-recover' && format('refs/tags/lib/{0}', inputs.lib_version) || github.ref }}
       - name: Configure git credentials for JGit
         run: |
-          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n x-access-token:${{ secrets.GITHUB_TOKEN }} | base64)"
-      - uses: actions/setup-java@v5
+          git config --local http.https://github.com/.extraheader "AUTHORIZATION: basic $(echo -n x-access-token:${{ secrets.GITHUB_TOKEN }} | base64 -w0)"
+      - uses: actions/setup-java@v6
         with:
           java-version: 21
           distribution: 'temurin'
       - name: gradle caching
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
       - name: git fetch origin main
-        run: git fetch origin main
+        # force HTTP/1.1 to dodge the "Failed sending HTTP request" HTTP/2 bug
+        # seen on the ubuntu-24.04 runner image (git 2.54)
+        run: git -c http.version=HTTP/1.1 fetch origin main
       - name: publish all
         if: "${{ github.event.inputs.to_publish == 'all' }}"
+        env:
+          GRADLE_KEY: ${{ secrets.GRADLE_KEY }}
+          GRADLE_SECRET: ${{ secrets.GRADLE_SECRET }}
         run: |
-          ./gradlew :changelogPush -Prelease=true --stacktrace --warning-mode all --no-configuration-cache
-          ./gradlew :plugin-gradle:changelogPush -Prelease=true -Pgradle.publish.key=${{ secrets.GRADLE_KEY }} -Pgradle.publish.secret=${{ secrets.GRADLE_SECRET }} --stacktrace --warning-mode all --no-configuration-cache
-          ./gradlew :plugin-maven:changelogPush -Prelease=true --stacktrace --warning-mode all --no-configuration-cache
+          bash .github/scripts/publish-release.sh lib
+          bash .github/scripts/publish-release.sh plugin-gradle
+          bash .github/scripts/publish-release.sh plugin-maven
       - name: publish just plugin-gradle
         if: "${{ github.event.inputs.to_publish == 'plugin-gradle' }}"
+        env:
+          GRADLE_KEY: ${{ secrets.GRADLE_KEY }}
+          GRADLE_SECRET: ${{ secrets.GRADLE_SECRET }}
         run: |
-          ./gradlew :plugin-gradle:changelogPush -Prelease=true -Pgradle.publish.key=${{ secrets.GRADLE_KEY }} -Pgradle.publish.secret=${{ secrets.GRADLE_SECRET }} --stacktrace --warning-mode all --no-configuration-cache
+          bash .github/scripts/publish-release.sh plugin-gradle
       - name: publish just plugin-maven
         if: "${{ github.event.inputs.to_publish == 'plugin-maven' }}"
         run: |
-          ./gradlew :plugin-maven:changelogPush -Prelease=true --stacktrace --warning-mode all --no-configuration-cache
+          bash .github/scripts/publish-release.sh plugin-maven
       - name: publish just lib
         if: "${{ github.event.inputs.to_publish == 'lib' }}"
         run: |
-          ./gradlew :changelogPush -Prelease=true --stacktrace --warning-mode all --no-configuration-cache
+          bash .github/scripts/publish-release.sh lib
+      - name: Recover library artifacts from an existing tag
+        if: "${{ inputs.to_publish == 'lib-recover' }}"
+        env:
+          LIB_VERSION: ${{ inputs.lib_version }}
+        run: |
+          # Verify the build's versions without printing Gradle properties or secrets.
+          cat > "$RUNNER_TEMP/verify-library-version.gradle" <<'EOF'
+          gradle.projectsEvaluated {
+              if (rootProject.name != 'spotless') {
+                  return // Init scripts also run for the included build-logic build.
+              }
+              [':lib', ':lib-extra'].each { projectPath ->
+                  def library = rootProject.project(projectPath)
+                  if (library.version.toString() != System.getenv('LIB_VERSION')) {
+                      throw new GradleException("Library version does not match the recovery tag: ${projectPath}")
+                  }
+              }
+          }
+          EOF
+          # End this build successfully so the publishing plugin uploads its bundle.
+          # Do not run changelogPush: the version and tag already exist.
+          ./gradlew :lib:publishToMavenCentral :lib-extra:publishToMavenCentral \
+            -Prelease=true -PmavenCentralDeploymentValidation=PUBLISHED \
+            --init-script "$RUNNER_TEMP/verify-library-version.gradle" \
+            --stacktrace --warning-mode all --no-configuration-cache --no-scan

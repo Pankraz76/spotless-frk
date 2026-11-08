@@ -86,7 +86,7 @@ FormatterStep create    (String name, State state                  , Function<St
 FormatterStep createLazy(String name, Supplier<State> stateSupplier, Function<State, FormatterFunc> stateToFormatter)
 ```
 
-If your formatting step only needs to call one or two methods of the external dependency, you can pull it in at runtime and call it via reflection.  See the logic for [`EclipseFormatterStep`](lib-extra/src/main/java/com/diffplug/spotless/extra/java/EclipseFormatterStep.java) or [`GoogleJavaFormatStep`](lib/src/main/java/com/diffplug/spotless/java/GoogleJavaFormatStep.java).
+If your formatting step only needs to call one or two methods of the external dependency, you can pull it in at runtime and call it via reflection.  See the logic for [`EclipseJdtFormatterStep`](lib-extra/src/main/java/com/diffplug/spotless/extra/java/EclipseJdtFormatterStep.java) or [`GoogleJavaFormatStep`](lib/src/main/java/com/diffplug/spotless/java/GoogleJavaFormatStep.java).
 
 Here's a checklist for creating a new step for Spotless:
 
@@ -196,7 +196,7 @@ the pipeline fails, first check if the code is formatted and no bugs were found.
 
 First, run `./gradlew publishToMavenLocal` in your local checkout of Spotless.  Now, in any other project on your machine, you can use the following snippet in your `settings.gradle` (for Gradle 6.0+).
 
-```
+```gradle
 pluginManagement {
   repositories {
     mavenLocal {
@@ -206,47 +206,19 @@ pluginManagement {
     }
     gradlePluginPortal()
   }
-  resolutionStrategy {
-    eachPlugin {
-      if (requested.id.id == 'com.diffplug.spotless') {
-        useModule('com.diffplug.spotless:spotless-plugin-gradle:{latest-SNAPSHOT}')
-      }
-    }
-  }
 }
 ```
 
-### Gradle - any commit in a public GitHub repo (this one, or any fork)
+### Gradle - snapshot builds
 
-In Gradle 6.0+, you can use the following snippet in your `settings.gradle`.
-
-
-```gradle
-pluginManagement {
-  repositories {
-    maven {
-      url 'https://jitpack.io'
-      content {
-        includeGroup 'com.github.{{user-or-org}}.spotless'
-      }
-    }
-    gradlePluginPortal()
-  }
-  resolutionStrategy {
-    eachPlugin {
-      if (requested.id.id == 'com.diffplug.spotless') {
-        useModule('com.github.{{USER_OR_ORG}}.spotless:spotless-plugin-gradle:{{SHA_OF_COMMIT_YOU_WANT}}')
-      }
-    }
-  }
-}
-```
-
-If it doesn't work, you can check the JitPack log at `https://jitpack.io/com/github/{{USER_OR_ORG}}/spotless/{{SHA_OF_COMMIT_YOU_WANT}}/build.log`.
+Nothing is published automatically -- a push to any branch cannot publish anything. A maintainer can
+publish a snapshot by hand with the `release-snapshot` workflow, which we use to exercise publishing
+and signing before a release, so don't count on any particular snapshot existing. To test an
+unreleased change, use the local workflow above.
 
 ### Maven
 
-Run `./gradlew publishToMavenLocal` to publish this to your local repository. You can also use the JitPack artifacts, using the same principles as Gradle above.
+Run `./gradlew publishToMavenLocal` to publish this to your local repository.
 
 ## License
 

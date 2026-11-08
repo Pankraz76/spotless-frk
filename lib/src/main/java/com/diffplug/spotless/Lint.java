@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 DiffPlug
+ * Copyright 2022-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.diffplug.spotless;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -155,8 +156,13 @@ public final class Lint implements Serializable {
 			}
 			current = current.getCause();
 		}
-		String exceptionName = e.getClass().getName();
-		String detail = ThrowingEx.stacktrace(e);
+		// formatters are often invoked via reflection, report the actual failure rather than the reflective wrapper
+		Throwable reported = e;
+		while (reported instanceof InvocationTargetException && reported.getCause() != null) {
+			reported = reported.getCause();
+		}
+		String exceptionName = reported.getClass().getName();
+		String detail = ThrowingEx.stacktrace(reported);
 		if (detail.startsWith(exceptionName + ": ")) {
 			detail = detail.substring(exceptionName.length() + 2);
 		}

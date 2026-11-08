@@ -47,7 +47,9 @@ import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileTree;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.FileSystemLocation;
 import org.gradle.api.plugins.BasePlugin;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
@@ -95,11 +97,11 @@ public class FormatExtension {
 	}
 
 	protected final Provisioner provisioner() {
-		return spotless.getRegisterDependenciesTask().getTaskService().get().provisionerFor(spotless);
+		return spotless.getSpotlessTaskService().get().provisionerFor(spotless);
 	}
 
 	protected final P2Provisioner p2Provisioner() {
-		return spotless.getRegisterDependenciesTask().getTaskService().get().p2ProvisionerFor(spotless);
+		return spotless.getSpotlessTaskService().get().p2ProvisionerFor(spotless);
 	}
 
 	private String formatName() {
@@ -344,6 +346,9 @@ public class FormatExtension {
 				matchedFiles.exclude(excludes);
 			}
 			return matchedFiles;
+		} else if (isExclude && (target instanceof FileSystemLocation || target instanceof Provider)) {
+			// an excluded directory means the files under it, and the tree resolves them lazily
+			return getProject().files(target).getAsFileTree();
 		} else {
 			return getProject().files(target);
 		}
@@ -610,6 +615,15 @@ public class FormatExtension {
 		 */
 		public LicenseHeaderConfig yearSeparator(String yearSeparator) {
 			builder = builder.withYearSeparator(yearSeparator);
+			replaceStep(createStep());
+			return this;
+		}
+
+		/**
+		 * @param yearStrFmt The String format used to format the year part of the license header.
+		 */
+		public LicenseHeaderConfig yearStringFormat(String yearStrFmt) {
+			builder = builder.withYearStingFormat(yearStrFmt);
 			replaceStep(createStep());
 			return this;
 		}
@@ -1098,7 +1112,7 @@ public class FormatExtension {
 		LineEnding lineEndings = getLineEndings();
 		task.setLineEndingsPolicy(
 				getProject().provider(() -> lineEndings.createPolicy(projectDir.getAsFile(), () -> totalTarget)));
-		spotless.getRegisterDependenciesTask().hookSubprojectTask(task);
+		spotless.getSpotlessTaskService().get().hookSubprojectTask(getProject(), task);
 		task.setupRatchet(getRatchetFrom() != null ? getRatchetFrom() : "");
 	}
 
@@ -1134,7 +1148,7 @@ public class FormatExtension {
 				"Task name must not end with " + SpotlessExtension.APPLY);
 		TaskProvider<SpotlessTaskImpl> spotlessTask = spotless.project.getTasks()
 				.register(taskName + SpotlessTaskService.INDEPENDENT_HELPER, SpotlessTaskImpl.class, task -> {
-					task.init(spotless.getRegisterDependenciesTask().getTaskService());
+					task.init(spotless.getSpotlessTaskService());
 					setupTask(task);
 					// clean removes the SpotlessCache, so we have to run after clean
 					task.mustRunAfter(BasePlugin.CLEAN_TASK_NAME);

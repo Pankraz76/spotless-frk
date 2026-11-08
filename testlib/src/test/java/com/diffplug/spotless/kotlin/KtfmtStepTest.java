@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2025 DiffPlug
+ * Copyright 2016-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package com.diffplug.spotless.kotlin;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
 import com.diffplug.spotless.FormatterStep;
 import com.diffplug.spotless.ResourceHarness;
@@ -41,6 +43,59 @@ class KtfmtStepTest extends ResourceHarness {
 	}
 
 	@Test
+	void behaviorWithOptions_0_61() {
+		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
+		options.setMaxWidth(100);
+		FormatterStep step = KtfmtStep.create("0.61", TestProvisioner.mavenCentral(), KtfmtStep.Style.GOOGLE, options);
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	void behavior_0_62() throws Exception {
+		FormatterStep step = KtfmtStep.create("0.62", TestProvisioner.mavenCentral());
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	void behaviorWithOptions_0_62() {
+		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
+		options.setMaxWidth(100);
+		FormatterStep step = KtfmtStep.create("0.62", TestProvisioner.mavenCentral(), KtfmtStep.Style.GOOGLE, options);
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	void behavior_0_64() throws Exception {
+		FormatterStep step = KtfmtStep.create("0.64", TestProvisioner.mavenCentral());
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	void behaviorWithOptions_0_64() {
+		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
+		options.setMaxWidth(100);
+		FormatterStep step = KtfmtStep.create("0.64", TestProvisioner.mavenCentral(), KtfmtStep.Style.GOOGLE, options);
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	void behaviorWithOptions_0_53() {
+		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
+		options.setMaxWidth(100);
+		FormatterStep step = KtfmtStep.create("0.53", TestProvisioner.mavenCentral(), KtfmtStep.Style.GOOGLE, options);
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	void behaviorWithOptions_0_56() {
+		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
+		options.setMaxWidth(100);
+		FormatterStep step = KtfmtStep.create("0.56", TestProvisioner.mavenCentral(), KtfmtStep.Style.GOOGLE, options);
+		StepHarness.forStep(step).testResource("kotlin/ktfmt/basic.dirty", "kotlin/ktfmt/basic.clean");
+	}
+
+	@Test
+	@EnabledForJreRange(max = JRE.JAVA_24)
 	void dropboxStyle_0_16() throws Exception {
 		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
 		FormatterStep step = KtfmtStep.create("0.16", TestProvisioner.mavenCentral(), KtfmtStep.Style.DROPBOX, options);
@@ -48,6 +103,7 @@ class KtfmtStepTest extends ResourceHarness {
 	}
 
 	@Test
+	@EnabledForJreRange(max = JRE.JAVA_24)
 	void dropboxStyle_0_18() throws Exception {
 		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
 		FormatterStep step = KtfmtStep.create("0.18", TestProvisioner.mavenCentral(), KtfmtStep.Style.DROPBOX, options);
@@ -55,6 +111,7 @@ class KtfmtStepTest extends ResourceHarness {
 	}
 
 	@Test
+	@EnabledForJreRange(max = JRE.JAVA_24)
 	void dropboxStyle_0_22() throws Exception {
 		KtfmtStep.KtfmtFormattingOptions options = new KtfmtStep.KtfmtFormattingOptions();
 		FormatterStep step = KtfmtStep.create("0.22", TestProvisioner.mavenCentral(), KtfmtStep.Style.DROPBOX, options);

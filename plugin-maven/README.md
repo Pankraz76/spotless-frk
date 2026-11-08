@@ -2,18 +2,18 @@
 
 <!---freshmark shields
 output = [
-  link(shield('MavenCentral', 'mavencentral', '{{group}}:{{artifactIdMaven}}', 'blue'), 'https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22{{group}}%22%20AND%20a%3A%22{{artifactIdMaven}}%22'),
+  link(shield('MavenCentral', 'mavencentral', '{{GROUP}}:spotless-maven-plugin', 'blue'), 'https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22{{GROUP}}%22%20AND%20a%3A%22spotless-maven-plugin%22'),
   link(shield('Changelog', 'changelog', '{{versionLast}}', 'blue'), 'CHANGES.md'),
   link(shield('Javadoc', 'javadoc', 'here', 'blue'), 'https://javadoc.io/doc/com.diffplug.spotless/spotless-maven-plugin/{{versionLast}}/index.html')
   ].join('\n');
 -->
 [![MavenCentral](https://img.shields.io/badge/mavencentral-com.diffplug.spotless%3Aspotless--maven--plugin-blue.svg)](https://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.diffplug.spotless%22%20AND%20a%3A%22spotless-maven-plugin%22)
-[![Changelog](https://img.shields.io/badge/changelog-3.2.1-blue.svg)](CHANGES.md)
-[![Javadoc](https://img.shields.io/badge/javadoc-here-blue.svg)](https://javadoc.io/doc/com.diffplug.spotless/spotless-maven-plugin/3.2.1/index.html)
+[![Changelog](https://img.shields.io/badge/changelog-3.11.0-blue.svg)](CHANGES.md)
+[![Javadoc](https://img.shields.io/badge/javadoc-here-blue.svg)](https://javadoc.io/doc/com.diffplug.spotless/spotless-maven-plugin/3.11.0/index.html)
 <!---freshmark /shields -->
 
 <!---freshmark javadoc
-output = prefixDelimiterReplace(input, 'https://{{org}}.github.io/{{name}}/javadoc/spotless-plugin-maven/', '/', versionLast)
+output = prefixDelimiterReplace(input, 'https://diffplug.github.io/spotless/javadoc/spotless-plugin-maven/', '/', versionLast)
 -->
 
 Spotless is a general-purpose formatting plugin used by [6,000 projects on GitHub (Jan 2023)](https://github.com/search?l=Maven+POM&q=spotless&type=Code).  It is completely à la carte, but also includes powerful "batteries-included" if you opt-in. Plugin requires a version of Maven higher or equal to 3.1.0.
@@ -40,10 +40,11 @@ user@machine repo % mvn spotless:check
   - [Git hook (optional)](#git-hook)
   - [Binding to maven phase](#binding-to-maven-phase)
 - **Languages**
-  - [Java](#java) ([google-java-format](#google-java-format), [eclipse jdt](#eclipse-jdt), [prettier](#prettier), [palantir-java-format](#palantir-java-format), [formatAnnotations](#formatAnnotations), [cleanthat](#cleanthat), [IntelliJ IDEA](#intellij-idea))
+  - [Java](#java) ([removeUnusedImports](#removeunusedimports), [forbidWildcardImports](#forbidwildcardimports), [expandWildcardImports](#expandwildcardimports), [forbidModuleImports](#forbidmoduleimports), [shortenFullyQualifiedTypes](#shortenfullyqualifiedtypes), [google-java-format](#google-java-format), [eclipse jdt](#eclipse-jdt), [prettier](#prettier), [palantir-java-format](#palantir-java-format), [prince-of-space](#prince-of-space), [formatAnnotations](#formatAnnotations), [cleanthat](#cleanthat), [tabletest-formatter](#tabletest-formatter), [IntelliJ IDEA](#intellij-idea))
   - [Groovy](#groovy) ([eclipse groovy](#eclipse-groovy))
-  - [Kotlin](#kotlin) ([ktfmt](#ktfmt), [ktlint](#ktlint), [diktat](#diktat), [prettier](#prettier))
+  - [Kotlin](#kotlin) ([ktfmt](#ktfmt), [ktlint](#ktlint), [diktat](#diktat), [tabletest-formatter](#tabletest-formatter-1), [prettier](#prettier))
   - [Scala](#scala) ([scalafmt](#scalafmt))
+  - [Asciidoc](#asciidoc) ([adocfmt](#adocfmt))
   - [C/C++](#cc) ([eclipse cdt](#eclipse-cdt), [clang-format](#clang-format))
   - [Python](#python) ([black](#black))
   - [Antlr4](#antlr4) ([antlr4formatter](#antlr4formatter))
@@ -216,6 +217,8 @@ any other maven phase (i.e. compile) then it can be configured as below;
     <prettier />         <!-- has its own section below -->
     <idea />             <!-- has its own section below -->
 
+    <tableTestFormatter /> <!-- has its own section below -->
+
     <importOrder /> <!-- standard import order -->
     <importOrder>  <!-- or a custom ordering -->
       <wildcardsLast>false</wildcardsLast> <!-- Optional, default false. Sort wildcard import after specific imports -->
@@ -231,8 +234,9 @@ any other maven phase (i.e. compile) then it can be configured as below;
     </importOrder>
 
     <removeUnusedImports /> <!-- self-explanatory -->
-    <forbidWildcardImports /> <!-- yell if any import ends with '*' -->
+    <forbidWildcardImports /> <!-- yell if any import ends with '*'; or use expandWildcardImports, see below -->
     <forbidModuleImports /> <!-- yell if any module imports are found (Java 25+) -->
+    <shortenFullyQualifiedTypes /> <!-- replaces fully-qualified type names with simple names + imports, see below -->
 
     <formatAnnotations />  <!-- fixes formatting of type annotations, see below -->
 
@@ -257,11 +261,78 @@ any other maven phase (i.e. compile) then it can be configured as below;
 <forbidWildcardImports/>
 ```
 
+### expandWildcardImports
+
+This step expands all wildcard imports to single class imports.
+To do this, [JavaParser](https://javaparser.org/) is used to parse the complete sourcecode and resolve the full qualified name of all used classes and static methods from the full classpath.
+This operation can be resource intensive when formatting many source files, so you may want to change to `forbidWildcardImports` when your codebase is cleaned and stable.
+
+```xml
+<expandWildcardImports/>
+```
+
 ### forbidModuleImports
 
 ```xml
 <forbidModuleImports/>
 ```
+
+### shortenFullyQualifiedTypes
+
+Replaces fully-qualified type names with their simple names, adding the imports they need. Useful for cleaning up generated code, or code where inline fully-qualified names have crept in.
+
+[JavaParser](https://javaparser.org/) parses the source and only type positions in the AST are rewritten, so fully-qualified names appearing in strings, text blocks, and comments are left alone. Unlike [`expandWildcardImports`](#expandwildcardimports), it works from the source file alone and does not need your compile classpath.
+
+New imports are appended after the existing ones, so run this before `<importOrder>`:
+
+```xml
+<shortenFullyQualifiedTypes/>
+<importOrder/>
+<removeUnusedImports/>
+```
+
+Before:
+
+```java
+package com.acme;
+
+public class UserService {
+  private final java.util.Map<String, java.util.List<String>> cache = new java.util.HashMap<>();
+
+  public java.util.List<String> getUsers(java.util.function.Predicate<String> filter) throws java.io.IOException {
+    return new java.util.ArrayList<>();
+  }
+}
+```
+
+After:
+
+```java
+package com.acme;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+
+public class UserService {
+  private final Map<String, List<String>> cache = new HashMap<>();
+
+  public List<String> getUsers(Predicate<String> filter) throws IOException {
+    return new ArrayList<>();
+  }
+}
+```
+
+A name is left fully-qualified whenever shortening it could change what the code means:
+
+- two different fully-qualified names in the file would collapse to the same simple name (e.g. `java.util.List` and `java.awt.List`)
+- an existing import already binds that simple name to a different type
+- the file does not parse
+
+Types in `java.lang` and in the file's own package are shortened without adding an import.
 
 ### google-java-format
 
@@ -269,14 +340,19 @@ any other maven phase (i.e. compile) then it can be configured as below;
 
 ```xml
 <googleJavaFormat>
-  <version>1.8</version>                      <!-- optional, 1.8 is the minimum supported version for Java 11 -->
+  <version>2.0.0</version>                      <!-- optional -->
   <style>GOOGLE</style>                       <!-- or AOSP (optional) -->
   <reflowLongStrings>true</reflowLongStrings> <!-- optional -->
+  <maxLineLength>120</maxLineLength>          <!-- optional, requires google-java-format 2.0.0+ -->
   <formatJavadoc>false</formatJavadoc>        <!-- optional -->
+  <reorderImports>false</reorderImports>.     <!-- optional -->
+  <cleanup>false</cleanup>                    <!-- optional, disables non-whitespace cleanups in google-java-format >= 2.0.0 -->
   <!-- optional: custom group artifact (you probably don't need this) -->
   <groupArtifact>com.google.googlejavaformat:google-java-format</groupArtifact>
 </googleJavaFormat>
 ```
+
+Note: when enabling `AOSP` style, `reorderImports` needs to be enabled to apply the correct import order from [the AOSP guidelines](https://source.android.com/docs/setup/contribute/code-style#order-import-statements).
 
 ### palantir-java-format
 
@@ -290,6 +366,23 @@ any other maven phase (i.e. compile) then it can be configured as below;
 </palantirJavaFormat>
 ```
 
+### prince-of-space
+
+[homepage](https://github.com/agustafson/prince-of-space). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/java/PrinceOfSpace.java). Requires a JDK 17+ host runtime.
+
+```xml
+<princeOfSpace>
+  <version>2.2.0</version>                      <!-- optional -->
+  <indentStyle>SPACES</indentStyle>              <!-- or TABS (optional) -->
+  <indentSize>4</indentSize>                     <!-- optional -->
+  <lineLength>120</lineLength>                   <!-- optional -->
+  <wrapStyle>BALANCED</wrapStyle>                <!-- or WIDE/NARROW (optional) -->
+  <closingParenOnNewLine>true</closingParenOnNewLine>  <!-- optional -->
+  <trailingCommas>false</trailingCommas>         <!-- optional -->
+  <javaLanguageLevel>17</javaLanguageLevel>      <!-- optional -->
+</princeOfSpace>
+```
+
 ### eclipse jdt
 
 [homepage](https://download.eclipse.org/eclipse/downloads/). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/java/Eclipse.java). See [here](../ECLIPSE_SCREENSHOTS.md) for screenshots that demonstrate how to get and install the config file mentioned below.
@@ -300,7 +393,7 @@ any other maven phase (i.e. compile) then it can be configured as below;
   <version>4.26</version>
   <!-- Optional: Specify a file which contains all formatting options. -->
   <file>${project.basedir}/eclipse-formatter.xml</file>
-  <!-- If the access to the p2 repositories is restricted, mirrors can be pecified using a URI prefix map as follows:-->
+  <!-- If the access to the p2 repositories is restricted, mirrors can be specified using a URI prefix map as follows:-->
   <p2Mirrors>
     <p2Mirror>
       <prefix>https://download.eclipse.org/eclipse/updates/4.26/</prefix>
@@ -384,7 +477,8 @@ These mechanisms already exist for the Gradle plugin.
 
 ```xml
 <cleanthat>
-  <version>2.8</version>                          <!-- optional version of Cleanthat -->
+  <version>2.25</version>                         <!-- optional version of Cleanthat -->
+  <javaparserVersion>3.26.4</javaparserVersion>   <!-- optional. Advanced: override the JavaParser version pulled in transitively by Cleanthat -->
   <sourceJdk>${maven.compiler.source}</sourceJdk> <!-- optional. Default to ${maven.compiler.source} else '1.7' -->
   <mutators>
     <mutator>SafeAndConsensual</mutator>          <!-- optional. Default to 'SafeAndConsensual' to include all mutators -->
@@ -397,6 +491,16 @@ These mechanisms already exist for the Gradle plugin.
   </excludedMutators>
   <includeDraft>false</includeDraft>              <!-- optional. Default to false, not to include draft mutators from Composite mutators -->
 </cleanthat>
+```
+
+### tabletest-formatter
+
+[homepage](https://github.com/nchaugen/tabletest-formatter). [changelog](https://github.com/nchaugen/tabletest-formatter/releases). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/java/TableTestFormatter.java). Formats [`@TableTest`](https://github.com/nchaugen/tabletest) tables in Java source files. All configuration is read from `.editorconfig` files.
+
+```xml
+<tableTestFormatter>
+  <version>1.1.2</version> <!-- optional -->
+</tableTestFormatter>
 ```
 
 ## Groovy
@@ -462,6 +566,8 @@ Groovy-Eclipse formatting errors/warnings lead per default to a build failure. T
     <diktat />   <!-- has its own section below -->
     <prettier /> <!-- has its own section below -->
 
+    <tableTestFormatter /> <!-- has its own section below -->
+
     <licenseHeader>
       <content>/* (C)$YEAR */</content>  <!-- or <file>${project.basedir}/license-header</file> -->
     </licenseHeader>
@@ -471,7 +577,7 @@ Groovy-Eclipse formatting errors/warnings lead per default to a build failure. T
 
 ### ktfmt
 
-[homepage](https://github.com/facebook/ktfmt). [changelog](https://github.com/facebook/ktfmt/releases). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/kotlin/Ktfmt.java).
+[homepage](https://github.com/Kotlin/ktfmt). [changelog](https://github.com/Kotlin/ktfmt/releases). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/kotlin/Ktfmt.java).
 
 ```xml
 <ktfmt>
@@ -521,6 +627,16 @@ Additionally, `editorConfigOverride` options will override what's supplied in `.
   <version>1.0.1</version> <!-- optional -->
   <configFile>full/path/to/diktat-analysis.yml</configFile> <!-- optional, configuration file path -->
 </diktat>
+```
+
+### tabletest-formatter
+
+[homepage](https://github.com/nchaugen/tabletest-formatter). [changelog](https://github.com/nchaugen/tabletest-formatter/releases). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/kotlin/TableTestFormatter.java). Formats [`@TableTest`](https://github.com/nchaugen/tabletest) tables in Kotlin source files. All configuration is read from `.editorconfig` files.
+
+```xml
+<tableTestFormatter>
+  <version>1.1.2</version> <!-- optional -->
+</tableTestFormatter>
 ```
 
 <a name="applying-to-scala-source"></a>
@@ -679,6 +795,49 @@ Additionally, `editorConfigOverride` options will override what's supplied in `.
 </antlr4Formatter>
 ```
 
+## Asciidoc
+
+[code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/asciidoc/Asciidoc.java). [available steps](https://github.com/diffplug/spotless/tree/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/asciidoc).
+
+```xml
+<configuration>
+  <asciidoc>
+    <includes> <!-- You have to set the target manually -->
+      <include>src/docs/**/*.adoc</include>
+    </includes>
+
+    <adocfmt /> <!-- has its own section below -->
+  </asciidoc>
+</configuration>
+```
+
+### adocfmt
+
+[homepage](https://github.com/dheid/adocfmt). [available versions](https://search.maven.org/artifact/org.drjekyll/adocfmt). [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/asciidoc/Adocfmt.java).
+
+```xml
+<adocfmt>
+  <version>0.3.1</version> <!-- optional -->
+  <normalizeSetextHeadings>true</normalizeSetextHeadings>       <!-- convert === underlines to ATX == (default: true) -->
+  <collapseConsecutiveBlankLines>true</collapseConsecutiveBlankLines> <!-- max 1 blank line (default: true) -->
+  <oneSentencePerLine>true</oneSentencePerLine>            <!-- each sentence on its own line (default: true) -->
+  <normalizeBlockDelimiters>true</normalizeBlockDelimiters>      <!-- exactly 4 characters (e.g. ----) (default: true) -->
+  <removeTrailingHeaderEqualsSign>true</removeTrailingHeaderEqualsSign> <!-- == Title == -> == Title (default: true) -->
+  <titleCase>false</titleCase>                     <!-- Title Case headings (default: false) -->
+  <removeTrailingWhitespace>true</removeTrailingWhitespace>      <!-- trim end of line (default: true) -->
+  <normalizeListBullets>false</normalizeListBullets>          <!-- - -> * (default: false) -->
+  <normalizeOrderedListMarkers>false</normalizeOrderedListMarkers>   <!-- 1. -> . (default: false) -->
+  <ensureHeadingBlankLines>true</ensureHeadingBlankLines>       <!-- blank line before/after headings (default: true) -->
+  <ensureSourceDelimiters>false</ensureSourceDelimiters>        <!-- wrap [source] in ---- (default: false) -->
+  <formatTables>true</formatTables>                  <!-- format AsciiDoc tables (default: true) -->
+  <tableLayout>AUTO</tableLayout>                   <!-- AUTO, EXPANDED, PRESERVE (default: AUTO) -->
+  <tableMaxLineWidth>120</tableMaxLineWidth>         <!-- max line width for compact table layout (default: 120) -->
+  <tableBlankLines>ALL</tableBlankLines>             <!-- NONE, HEADER, ALL, PRESERVE (default: ALL) -->
+</adocfmt>
+```
+
+Options default to `true` or `false` as shown above. This formatter is opinionated and designed to help you maintain a clean, consistent AsciiDoc structure. For example, `<oneSentencePerLine>` is a highly recommended practice in the AsciiDoc community for better version control diffs.
+
 ## SQL
 
 [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/sql/Sql.java). [available steps](https://github.com/diffplug/spotless/tree/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/sql).
@@ -717,7 +876,7 @@ sql.formatter.keyword.case=UPPER
 sql.formatter.statement.delimiter=;
 # Indentation style (space or tab)
 sql.formatter.indent.type=space
-# Number of identation characters
+# Number of indentation characters
 sql.formatter.indent.size=4
 ```
 
@@ -813,11 +972,16 @@ You can change the `emulationProfile` to one of the other [supported profiles](h
 The `pegdownExtensions` can be configured as a comma-seperated list of [constants](https://github.com/vsch/flexmark-java/blob/master/flexmark/src/main/java/com/vladsch/flexmark/parser/PegdownExtensions.java) or as a custom bitset as an integer.
 Any other `extension` can be configured using either the simple name as shown in the example or using a full-qualified class name.
 
+Arbitrary formatter options from the [flexmark-java Markdown Formatter](https://github.com/vsch/flexmark-java/wiki/Markdown-Formatter#options) can be set via `formatterOptions`. Each key is a camelCase version of the corresponding `SCREAMING_SNAKE_CASE` constant on [`com.vladsch.flexmark.formatter.Formatter`](https://github.com/vsch/flexmark-java/blob/master/flexmark/src/main/java/com/vladsch/flexmark/formatter/Formatter.java) (e.g. `rightMargin` maps to `Formatter.RIGHT_MARGIN`). Supported value types are `Integer`, `Boolean`, and `String`.
+
 ```xml
 <flexmark>
   <emulationProfile>COMMONMARK</emulationProfile>
   <pegdownExtensions>ALL,TOC</pegdownExtensions>
   <extensions>YamlFrontMatter,Emoji</extensions>
+  <formatterOptions>
+    <rightMargin>120</rightMargin>
+  </formatterOptions>
 </flexmark>
 ```
 
@@ -1166,6 +1330,25 @@ When formatting shell scripts via `shfmt`, configure `shfmt` settings via `.edit
 </shfmt>
 ```
 
+## TableTest
+
+[code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/tabletest/TableTest.java). [available steps](https://github.com/diffplug/spotless/tree/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/tabletest).
+
+```xml
+<configuration>
+  <tableTest>
+    <includes>
+      <include>src/**/*.table</include>
+    </includes>
+    <tableTestFormatter>
+      <version>1.1.2</version> <!-- optional -->
+    </tableTestFormatter>
+  </tableTest>
+</configuration>
+```
+
+[homepage](https://github.com/nchaugen/tabletest-formatter). [changelog](https://github.com/nchaugen/tabletest-formatter/releases). Formats standalone [TableTest](https://github.com/nchaugen/tabletest) `.table` files.
+
 ## Gherkin
 
 - `com.diffplug.spotless.maven.FormatterFactory.addStepFactory(FormatterStepFactory)` [code](https://github.com/diffplug/spotless/blob/main/plugin-maven/src/main/java/com/diffplug/spotless/maven/gherkin/Gherkin.java)
@@ -1231,17 +1414,19 @@ List of generic configuration `parameters (type/default)`
 the build fails for any of them. You can ignore warnings using this parameter. They will still be logged in the plugin's 
 output.
 * `verify (boolean/true)`: If `true`, the content before and after formatting is parsed to an RDF model and compared for isomorphicity.   
-* `turtleFormatterVersion (string|RdfFormatterStep.LATEST_TURTLE_FORMATTER_VERSION)`: the version of turtle-formatter to use (see below).
+* `turtleFormatterVersion (string|RdfFormatterStep.LATEST_TURTLE_FORMATTER_VERSION)`: the version of Cool RDF Formatter to use (see below).
 
 ### Supported RDF formats: only TTL (at the moment)
 
-Formatting TTL is done using [turtle-formatter](https://github.com/atextor/turtle-formatter),
-which is highly configurable (have a look at the [Style Documentation](https://github.com/atextor/turtle-formatter?tab=readme-ov-file#customizing-the-style)) 
+Formatting TTL is done using [Cool RDF Formatter](https://github.com/cool-rdf/cool-rdf/tree/main/cool-rdf-formatter),
+which is highly configurable (have a look at the [Style Documentation](https://github.com/cool-rdf/cool-rdf/tree/main/cool-rdf-formatter))
 and will handle blank nodes the way you'd hope.
 
-The style options can be configured via spotless. Wherever the style wants a URI (for example, for the `predicateOrder`, you can 
-use the abbreviated form if it is a `FormattingStyle.KnownPrefix` (currently `rdf`, `rdfs`, `xsd`, `owl`, `dcterms`)
-Error messages will give you hints. To configure the TTL formatting style, pass the configuration parameters under `<turtle>`
+The style options can be configured via spotless. Wherever the style wants a URI (for example, for the `predicateOrder`, you can
+use the abbreviated form if it is a known `RdfPrefix` from Cool RDF's `Prefixes` enum.
+Error messages will give you hints. To configure the TTL formatting style, pass the configuration parameters under `<turtle>`.
+For example, Cool RDF Formatter versions which support `preserveBlankNodeLabelsAndOrdering` (default true) can set it with
+`<preserveBlankNodeLabelsAndOrdering>false</preserveBlankNodeLabelsAndOrdering>`.Set it to `false`, to use Cool RDF's default behavior (stable blank node ordering).
 
 ### Examples
 Minimal:
@@ -1265,10 +1450,11 @@ Configuring some generic and TTL options:
     <format>
       <failOnWarning>false</failOnWarning>
       <verify>false</verify>
-      <turtleFormatterVersion>1.2.13</turtleFormatterVersion>
+      <turtleFormatterVersion>2.0.0</turtleFormatterVersion>
       <turtle>
         <alignPrefixes>RIGHT</alignPrefixes>
         <enableDoubleFormatting>true</enableDoubleFormatting>
+        <preserveBlankNodeLabelsAndOrdering>false</preserveBlankNodeLabelsAndOrdering>
       </turtle>
     </format>
   </rdf>
@@ -1277,7 +1463,7 @@ Configuring some generic and TTL options:
 ### Libraries and versions
 
 RDF parsing is done via [Apache Jena](https://jena.apache.org/) in the version that
-[turtle-formatter](https://github.com/atextor/turtle-formatter) depends on (not necessarily the latest).
+[Cool RDF Formatter](https://github.com/cool-rdf/cool-rdf/tree/main/cool-rdf-formatter) depends on (not necessarily the latest).
 
 ## Protobuf
 
@@ -1844,6 +2030,25 @@ Some files have fixed header lines (e.g. `<?xml version="1.0" ...` in XMLs, or `
 
 To define what lines to skip at the beginning of such files, fill the `skipLinesMatching` option with a regular expression that matches them (e.g. `<skipLinesMatching>^#!.+?$</skipLinesMatching>` to skip shebangs).
 
+### Skip headers and multiple license headers
+
+Sometimes it may be necessary to disable a license rule for specific files, or to maintain dual licenses.
+
+To define alternate replacements: 
+
+```xml
+<licenseHeader>
+    <name>PrimaryHeaderLicense</name>
+    <content>/** Base License Header */</content>
+    <onlyIfContentMatches>Best</onlyIfContentMatches>
+</licenseHeader>
+<licenseHeader>
+  <name>SecondaryHeaderLicense</name>
+  <content>/** Alternate License Header */</content>
+  <onlyIfContentMatches>.*Test.+</onlyIfContentMatches>
+</licenseHeader>
+```
+
 <a name="invisible"></a>
 
 <a name="ratchet"></a>
@@ -1962,12 +2167,23 @@ You can easily set the line endings of different files using [a `.gitattributes`
 
 <a name="enforceCheck"></a>
 
-## Disabling warnings and error messages
+## Disabling Spotless goals
 
-By default, `spotless:check` is bound to the `verify` phase.  You might want to disable this behavior.  We [recommend against this](https://github.com/diffplug/spotless/issues/79#issuecomment-290844602), but it's easy to do if you'd like:
+By default, `spotless:check` is bound to the `verify` phase. You might want to disable Spotless for some builds. We [recommend against this](https://github.com/diffplug/spotless/issues/79#issuecomment-290844602), but the following properties are available:
 
-- set `-Dspotless.check.skip=true` at the command line
-- set `spotless.check.skip` to `true` in the `<properties>` section of the `pom.xml`
+| Property | Scope | Effect |
+| --- | --- | --- |
+| `spotless.skip` | `spotless:check` and `spotless:apply` | Skips both formatting goals |
+| `spotless.check.skip` | `spotless:check` only | Skips only the check goal |
+| `spotless.apply.skip` | `spotless:apply` only | Skips only the apply goal |
+
+You can set them at the command line or in the `<properties>` section of the `pom.xml`:
+
+- `-Dspotless.skip=true` / `<spotless.skip>true</spotless.skip>` — skip both `spotless:check` and `spotless:apply`
+- `-Dspotless.check.skip=true` / `<spotless.check.skip>true</spotless.check.skip>` — skip only `spotless:check` (including when it is bound to `verify`)
+- `-Dspotless.apply.skip=true` / `<spotless.apply.skip>true</spotless.apply.skip>` — skip only `spotless:apply`
+
+`spotless.check.skip` does **not** skip `spotless:apply`, and `spotless.apply.skip` does **not** skip `spotless:check`. Use `spotless.skip` when you want both. These properties do **not** affect `spotless:install-git-pre-push-hook`.
 
 ### Suppressing lint errors
 

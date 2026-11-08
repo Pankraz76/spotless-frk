@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 DiffPlug
+ * Copyright 2022-2026 DiffPlug
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,15 @@
  */
 package com.diffplug.spotless.glue.ktfmt;
 
+import java.io.File;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.facebook.ktfmt.format.Formatter;
-import com.facebook.ktfmt.format.FormattingOptions;
+import org.jetbrains.kotlinx.ktfmt.format.FileType;
+import org.jetbrains.kotlinx.ktfmt.format.Formatter;
+import org.jetbrains.kotlinx.ktfmt.format.FormattingOptions;
+import org.jetbrains.kotlinx.ktfmt.format.KotlinCode;
 
 import com.diffplug.spotless.FormatterFunc;
 
@@ -50,29 +54,40 @@ public final class KtfmtFormatterFunc implements FormatterFunc {
 	@Nonnull
 	@Override
 	public String apply(@Nonnull String input) throws Exception {
-		return Formatter.format(createFormattingOptions(), input);
+		return format(input, FileType.REGULAR);
+	}
+
+	@Nonnull
+	@Override
+	public String apply(@Nonnull String input, @Nonnull File file) throws Exception {
+		FileType fileType = file.getName().endsWith("." + FileType.SCRIPT.getExtension()) ? FileType.SCRIPT : FileType.REGULAR;
+		return format(input, fileType);
+	}
+
+	private String format(String input, FileType fileType) throws Exception {
+		return Formatter.format(createFormattingOptions(), KotlinCode.Companion.from(input, fileType));
 	}
 
 	private FormattingOptions createFormattingOptions() throws Exception {
 		FormattingOptions formattingOptions = switch (style) {
-			case META -> Formatter.META_FORMAT;
-			case GOOGLE -> Formatter.GOOGLE_FORMAT;
-			case KOTLIN_LANG -> Formatter.KOTLINLANG_FORMAT;
-			default -> throw new IllegalStateException("Unknown formatting option " + style);
+		case META -> Formatter.META_FORMAT;
+		case GOOGLE -> Formatter.GOOGLE_FORMAT;
+		case KOTLIN_LANG -> Formatter.KOTLINLANG_FORMAT;
+		default -> throw new IllegalStateException("Unknown formatting option " + style);
 		};
 
-		if (ktfmtFormattingOptions != null) {
-			formattingOptions = formattingOptions.copy(
-				ktfmtFormattingOptions.getMaxWidth().orElse(formattingOptions.getMaxWidth()),
-				ktfmtFormattingOptions.getBlockIndent().orElse(formattingOptions.getBlockIndent()),
-				ktfmtFormattingOptions.getContinuationIndent().orElse(formattingOptions.getContinuationIndent()),
-				ktfmtFormattingOptions.getTrailingCommaManagementStrategy()
-					.map(KtfmtTrailingCommaManagementStrategy::toFormatterTrailingCommaManagementStrategy)
-					.orElse(formattingOptions.getTrailingCommaManagementStrategy()),
-				ktfmtFormattingOptions.getRemoveUnusedImports().orElse(formattingOptions.getRemoveUnusedImports()),
-				formattingOptions.getDebuggingPrintOpsAfterFormatting());
+		if (ktfmtFormattingOptions == null) {
+			return formattingOptions;
 		}
 
-		return formattingOptions;
+		FormattingOptions.Builder builder = formattingOptions.toBuilder();
+		ktfmtFormattingOptions.getMaxWidth().ifPresent(builder::maxWidth);
+		ktfmtFormattingOptions.getBlockIndent().ifPresent(builder::blockIndent);
+		ktfmtFormattingOptions.getContinuationIndent().ifPresent(builder::continuationIndent);
+		ktfmtFormattingOptions.getTrailingCommaManagementStrategy()
+				.map(KtfmtTrailingCommaManagementStrategy::toFormatterTrailingCommaManagementStrategy)
+				.ifPresent(builder::trailingCommaManagementStrategy);
+		ktfmtFormattingOptions.getRemoveUnusedImports().ifPresent(builder::removeUnusedImports);
+		return builder.build();
 	}
 }
