@@ -94,7 +94,7 @@ Here's a checklist for creating a new step for Spotless:
 - [ ] Class has a public static method named `create` that returns a `FormatterStep`.
 - [ ] Has a test class named `SomeNewStepTest` that uses `StepHarness` or `StepHarnessWithFile` to test the step.
 - [ ] Test class has test methods to verify behavior.
-- [ ] Test class has a test method `equality()` which tests equality using `StepEqualityTester` (see existing methods for examples).
+- [ ] Test class has a test method `equality()` which tests equality using [`SerializableEqualityTester`](testlib/src/main/java/com/diffplug/spotless/SerializableEqualityTester.java) (see existing methods for examples).
 
 ### Serialization roundtrip
 
